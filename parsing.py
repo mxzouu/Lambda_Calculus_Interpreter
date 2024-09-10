@@ -35,41 +35,42 @@ def parantheses_couples(terme):
     return (open_parantheses_counter(terme)[0])
 
 def findOpeningParanthesesIndex(terme, closeParentheseIndex):
+    assert balancedParantheses(terme), "Not balanced Terme"
+    if closeParentheseIndex >= len(terme) or closeParentheseIndex < 0:
+        raise IndexError("closeParentheseIndex is out of range")
 
+    if terme[closeParentheseIndex] not in parentheses_map:
+        raise KeyError(f"Character at closeParentheseIndex '{terme[closeParentheseIndex]}' is not a valid closing parenthesis")
 
     openParenthesis = parentheses_map[terme[closeParentheseIndex]]
     openParantheseIndex = closeParentheseIndex
     counter = 1
 
-    while(counter > 0):
-        openParantheseIndex -=1
+    while counter > 0:
+        openParantheseIndex -= 1
+        if openParantheseIndex < 0:
+            raise IndexError("No matching opening parenthesis found")
         char = terme[openParantheseIndex]
         if char == openParenthesis:
             counter -= 1
-        elif char in close_list: #elif char in set(parentheses_map.keys()): could be a better solution since set lookups are O(1)
+        elif char in close_list:  # elif char in set(parentheses_map.keys()): could be a better solution since set lookups are O(1)
             counter += 1
     return openParantheseIndex
 
 
-
 # on lui donne l indice dune parenthese ouverte et renvoie l indice de la parenthese fermante
 def findClosingParanthesesIndex(terme, openParentheseIndex):
-
     assert balancedParantheses(terme), "Not balanced Terme"
-    stack = []
-    for index in range(openParentheseIndex, len(terme)):
-        char = terme[index]
-        if char in parentheses_map:
-            stack.append(char)
-        elif char in parentheses_map.values():
-            if not stack:
-                raise ValueError("Unmatched closing parenthesis at index {}".format(index))
-            last_open = stack.pop()
-            if parentheses_map[last_open] != char:
-                raise ValueError("Mismatched parentheses at index {}".format(index))
-            if not stack:
-                return index
-    raise ValueError("No matching closing parenthesis found")
+    closeParantheseIndex = openParentheseIndex
+    counter = 1
+    while (counter > 0 ):
+        closeParantheseIndex +=1
+        c = terme[closeParantheseIndex]
+        if c in open_list:
+            counter += 1
+        elif c in close_list:
+            counter -= 1
+    return closeParantheseIndex
 
 
 # renvoie ce qu'il y a entre la parenthese ouverte a l indice i et sa parethese fermante
@@ -125,33 +126,26 @@ def isApplication(terme):
 
 
 #on prend l input de labs en chaine de caractères
-def extractInputFromAbs(terme):
+def extractInputFromAbs(expression):
+    if not expression.startswith(('λ', '\\')):
+        return ""
     
-    if not isinstance(terme, str) or not terme:
-        raise ValueError("Invalid input: Input must be a non-empty string")
+    parts = expression[1:].split('.', 1)
+    if len(parts) == 2 and parts[0].isalpha():
+        return parts[0]
     
-    if checkType(terme) != ABS:
-        return ''
-    
-    beforePeriod,separator,_ = terme.partition('.')
-    
-    if not separator:
-        raise ValueError("Invalid input: Missing '.' in abstraction")
-    
-    return beforePeriod[1:]
+    return ""
 
 
 # on prend l output en chaine de caractères
 def extractOutputFromAbs(terme):
     if not isinstance(terme, str):
         raise TypeError("Input must be a string")
-    
+    if not terme.startswith(('λ', '\\')):
+        return ""
     index_of_point = terme.find('.')
     if index_of_point == -1:
         raise ValueError("Invalid input: Missing '.' in abstraction")
-    
-    if checkType(terme) != ABS:
-        raise ValueError("Invalid input: Term is not of type ABS")
     
     return terme[index_of_point + 1:]
 
