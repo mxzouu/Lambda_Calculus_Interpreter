@@ -1,15 +1,12 @@
 #les lambda termes et les variables sont représentés par des listes dont le premier element indique le type du lambda terme et le deuxieme ses composants
-
-# Constantes
-
-
-
-
+import random,string
+import image_maker
+image_counter = 0
+var_counter =0
 VAR = 'variable'
 ABS = "abstraction"
 APP = "application"
 
-var_counter = 0
 
 #prend en argument une chaine de caractère et renvoie une variable
 def new_var(x):
@@ -76,12 +73,15 @@ def getVariables(terme):
         return getVariablesFromAbs(terme)
     elif isApplication(terme):
         return getVariablesFromApp(terme)
+    else:
+        raise ValueError("Unknown term type")
 
 # Prends en parametre une abstraction 'terme1' et n'importe quel lambda-term 'terme2' et nous rend une liste des variables communes entre terme1 et terme2, sinon elle retourne une liste vide
 def getCommonVariables(terme1,terme2):
     assert isAbstraction(terme1), "argument is not an abstraction!"
-    return  [i for i in getVariables(terme1) if i in getVariables(terme2)]
-    return set(getVariables(terme1)).intersection(getVariables(terme2))
+    variables_terme1 = set(getVariables(terme1))
+    variables_terme2 = set(getVariables(terme2))
+    return list(variables_terme1.intersection(variables_terme2))
 
 # Prends en parametre une abstraction 'terme1' et un lambda-term 'terme2' et nous rend True si terme2 contient des variables de terme1
 def isCommonVariables(terme1,terme2):
@@ -114,23 +114,27 @@ def substitute(var_a_changer,subs_terme, terme):
     elif isVariable(terme):
         return terme.copy()
     elif isApplication(terme):
-        return new_app(substitute(var_a_changer,subs_terme,getFirstTerm(terme)),substitute(var_a_changer,subs_terme,getSecondTerm(terme)))
-    if getInputFromAbs(terme) == var_a_changer:
-        return terme.copy()
-    return new_abs(getInputFromAbs(terme).copy(),substitute(var_a_changer,subs_terme,getOutputFromAbs(terme).copy()))
+        return new_app(substitute(var_a_changer,subs_terme,getFirstTerm(terme)),
+                       substitute(var_a_changer,subs_terme,getSecondTerm(terme)))
+    elif isAbstraction(terme):     
+        if getInputFromAbs(terme) == var_a_changer:
+            return terme.copy()
+        return new_abs(getInputFromAbs(terme).copy(),substitute(var_a_changer,subs_terme,getOutputFromAbs(terme).copy()))
+    return terme.copy()
 
 #Prends en parametre un lambda terme "grandTerme" et nous retourne lee variables liees de ce terme.
 def getBoundVariables(grandTerme):
     vars = []
     if isAbstraction(grandTerme):
-        vars += getInputVariablesFromAbs(grandTerme)
+        vars.extend(getInputVariablesFromAbs(grandTerme))
         A = getOutputFromAbs(grandTerme)
         if isAbstraction(A) or isApplication(A):
-            vars += getBoundVariables(A)
+            vars.extend(getBoundVariables(A))
+
     if isApplication(grandTerme):
-        vars += getBoundVariables(getFirstTerm(grandTerme))
-        vars += getBoundVariables(getSecondTerm(grandTerme))
-    return (vars)
+        vars.extend(getBoundVariables(getFirstTerm(grandTerme)))
+        vars.extend(getBoundVariables(getSecondTerm(grandTerme)))
+    return vars
 
 #prend en parametre une variable et retourne une variable fraiche a partir du dictionnaire counters
 def freshVar():
@@ -162,15 +166,13 @@ def beta_reduction(t):
         x = getInputFromAbs(t)
         A = getOutputFromAbs(t)
         B = beta_reduction(A)
-        if B != None:
-            return new_abs(x.copy(),B) ### x.copy() sont inutiles car on ne change jamais le tableau de variables
-        else:
-            return None
+        return new_abs(x.copy(), B) if B is not None else None
+    
     elif isApplication(t):
         A1 = getFirstTerm(t)
         B1 = getSecondTerm(t)
         A2 = beta_reduction(A1)
-        if A2 != None:
+        if A2 is not None:
             return (new_app(A2,B1))
         elif A2 == None:
             B2 = beta_reduction(B1)
@@ -218,8 +220,7 @@ def annotate_reductor(t):
         else:
             return None
 
-import image_maker
-image_counter = 0
+
 def captureImage(terme, path, counter=True, date= True):
     global image_counter
     if type(counter) == bool and counter:
@@ -235,71 +236,123 @@ def captureImage(terme, path, counter=True, date= True):
             image_maker.saveImage(image_maker.createImage(terme),str(counter),path,date)
         image_counter += 1
 
+
+def is_valid_application(a, b):
+    return (
+        isApplication(a) and isApplication(b) and
+        isVariable(getFirstTerm(a)) and isVariable(getSecondTerm(a)) and
+        isVariable(getFirstTerm(b)) and isVariable(getSecondTerm(b)) and
+        getFirstTerm(a) == getSecondTerm(a) and
+        getFirstTerm(b) == getSecondTerm(b)
+    )
+
+def is_valid_abstraction(first, second,a,b):
+    return (
+        isAbstraction(first) and isAbstraction(second) and
+        getFirstTerm(a) == getInputFromAbs(first) and
+        getFirstTerm(b) == getInputFromAbs(second)
+    )
+
 def recognize_term(terme):
-    if isApplication(terme):
-        first=getFirstTerm(terme)
-        second= getSecondTerm(terme)
-        if  isAbstraction(first) and isAbstraction(second) :
-            a=getOutputFromAbs(first)
-            b=getOutputFromAbs(second)
-            if isApplication(a) and isApplication(b):
-                if isVariable(getFirstTerm(a)) and isVariable(getSecondTerm(a)) and isVariable(getFirstTerm(b)) and isVariable(getSecondTerm(b)):
-                    if getFirstTerm(a)==getSecondTerm(a) and getFirstTerm(b)==getSecondTerm(b):
-                        if getFirstTerm(a)==getInputFromAbs(first) and getFirstTerm(b)==getInputFromAbs(second):
-                            return True
-                        else:
-                            return False
-                    else:
-                        return False
-                else:
-                    return False
-            else:
-                return False
-        else:
-            return False
-    else:
+    if not isApplication(terme):
         return False
+
+    first = getFirstTerm(terme)
+    second = getSecondTerm(terme)
+
+    if not isAbstraction(first) or not isAbstraction(second):
+        return False
+
+    a = getOutputFromAbs(first)
+    b = getOutputFromAbs(second)
+
+    if not is_valid_application(a, b):
+        return False
+
+    return is_valid_abstraction(first, second,a,b)
+
+#TODO: figure out if the above implementation is covers all edge cases
+# def recognize_term(terme):
+#     if isApplication(terme):
+#         first=getFirstTerm(terme)
+#         second= getSecondTerm(terme)
+#         if  isAbstraction(first) and isAbstraction(second) :
+#             a=getOutputFromAbs(first)
+#             b=getOutputFromAbs(second)
+#             if isApplication(a) and isApplication(b):
+#                 if isVariable(getFirstTerm(a)) and isVariable(getSecondTerm(a)) and isVariable(getFirstTerm(b)) and isVariable(getSecondTerm(b)):
+#                     if getFirstTerm(a)==getSecondTerm(a) and getFirstTerm(b)==getSecondTerm(b):
+#                         if getFirstTerm(a)==getInputFromAbs(first) and getFirstTerm(b)==getInputFromAbs(second):
+#                             return True
+#                         else:
+#                             return False
+#                     else:
+#                         return False
+#                 else:
+#                     return False
+#             else:
+#                 return False
+#         else:
+#             return False
+#     else:
+#         return False
+
+
 
 
 def beta_reduction_totale(terme, path, saveImages=True):
-    if saveImages==False:
-        if beta_reduction(terme) != None:
-            return beta_reduction_totale(beta_reduction(terme), path, False)
-        return (terme)
-    else:
-        if path == None:
-            if annotate_reductor(terme) != None:
-                captureImage(annotate_reductor(terme), None)
-            else:
-                captureImage(terme, None)
-        else:
-            if annotate_reductor(terme) != None:
-                captureImage(annotate_reductor(terme), path)
-            else:
-                captureImage(terme,path)
-        if beta_reduction(terme) != None:
-            return beta_reduction_totale(beta_reduction(terme), path)
-        return (terme)
+    def capture(terme, path):
+        annotated = annotate_reductor(terme)
+        captureImage(annotated if annotated is not None else terme, path)
+
+    if not saveImages:
+        reduced = beta_reduction(terme)
+        return beta_reduction_totale(reduced, path, False) if reduced is not None else terme
+
+    capture(terme, path)
+    reduced = beta_reduction(terme)
+    return beta_reduction_totale(reduced, path) if reduced is not None else terme
+
+# def beta_reduction_totale(terme, path, saveImages=True):
+#     if saveImages==False:
+#         if beta_reduction(terme) != None:
+#             return beta_reduction_totale(beta_reduction(terme), path, False)
+#         return (terme)
+#     else:
+#         if path == None:
+#             if annotate_reductor(terme) != None:
+#                 captureImage(annotate_reductor(terme), None)
+#             else:
+#                 captureImage(terme, None)
+#         else:
+#             if annotate_reductor(terme) != None:
+#                 captureImage(annotate_reductor(terme), path)
+#             else:
+#                 captureImage(terme,path)
+#         if beta_reduction(terme) != None:
+#             return beta_reduction_totale(beta_reduction(terme), path)
+#         return (terme)
     
     
 variables_letters_couples = {}
 
-import random,string
 def random_string(type):
-    if type == 'lower':
-        return ''.join(random.choice(string.ascii_lowercase) for i in range(1))
-    elif type == 'upper':
-        return ''.join(random.choice(string.ascii_uppercase) for i in range(1))
+    char_sets = {
+        'lower': string.ascii_lowercase,
+        'upper': string.ascii_uppercase
+    }
+    return ''.join(random.choice(char_sets[type]) for _ in range(1))
 
 def associateVariableWithLetter(var):
     if var in variables_letters_couples:
         return
-    if len(list(variables_letters_couples.keys())) >= 26 :
-        x = random_string('upper')
-    else:
-        x = random_string('lower')
+    
+    char_set_type = 'upper' if len(variables_letters_couples) >= 26 else 'lower'
+    x = random_string(char_set_type)
+    
     while x in variables_letters_couples.values():
         x = random_string('lower')
+    
     variables_letters_couples[var] = x
 
 
@@ -307,6 +360,7 @@ def to_string_var(terme):
     assert (isVariable(terme)), 'The argument is not a variable'
     associateVariableWithLetter(terme[1])
     return variables_letters_couples[terme[1]]
+
 def to_string_abs(terme):
     assert (isAbstraction(terme)), 'The argument is not an Abstraction'
     return "\u03BB"+to_string(getInputFromAbs(terme))+"."+to_string(getOutputFromAbs(terme))
