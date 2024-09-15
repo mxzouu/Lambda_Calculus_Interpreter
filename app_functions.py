@@ -53,26 +53,29 @@ def dec_to_lambda_relative_integers(number):
         return pair(TRUE,dec_to_church(number))
     return pair(FALSE, dec_to_church(abs(number)))
 
-def succ(n):#done
-    return beta_reduction_totale(new_app(SUCCS,n),'arithmetic expressions',True)
+def apply_beta_reduction(func, *args):
+    return beta_reduction_totale(new_app(*args), 'arithmetic expressions', True)
 
-def add(n,m):#done
-    return beta_reduction_totale(new_app(new_app(ADD,n),m),'arithmetic expressions',True)
+def succ(n):  # done
+    return apply_beta_reduction(SUCCS, SUCCS, n)
 
-def power(n,m):# done
-    return beta_reduction_totale(new_app((new_app(POW, n)),m),'arithmetic expressions',True)
+def add(n, m):  # done
+    return apply_beta_reduction(ADD, new_app(ADD, n), m)
 
-def multiplication(n,m):#done
-    return beta_reduction_totale(new_app(new_app(MUL,n),m),'arithmetic expressions',True)
+def power(n, m):  # done
+    return apply_beta_reduction(POW, new_app(POW, n), m)
 
-def is_zero(n):#done
-    return beta_reduction_totale(new_app(IS_ZERO,n),'arithmetic expressions',True)
+def multiplication(n, m):  # done
+    return apply_beta_reduction(MUL, new_app(MUL, n), m)
 
-def predec(n):#done
-     return beta_reduction_totale(new_app(PRED, n),'arithmetic expressions',True)
+def is_zero(n):  # done
+    return apply_beta_reduction(IS_ZERO, IS_ZERO, n)
 
-def sub(n,m):
-    return beta_reduction_totale(new_app(new_app(SUB,n),m),'arithmetic expressions',True)
+def predec(n):  # done
+    return apply_beta_reduction(PRED, PRED, n)
+
+def sub(n, m):
+    return apply_beta_reduction(SUB, new_app(SUB, n), m)
 
 #print(to_string(beta_reduction_totale(new_app(new_app(XOR,TRUE),FALSE),None,False)))
 #print(to_string(dec_to_lambda_relative_integers(5)))

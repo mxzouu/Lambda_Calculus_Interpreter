@@ -1,46 +1,33 @@
 from logic import *
-# TERME = input('Please enter a Lambda-Term: ')
-#renvoie conteur le nombre de parentheses ouvertes et indexes la liste des indices des parenthese)
 
-variables_counter = 0
 variables = {}
+open_list ="[({"
+close_list = "])}"
+parentheses_map = {')': '(', ']': '[', '}': '{'}
 
 def open_parantheses_counter(terme):
-    counter = 0
-    indexes = []
-    for i in range(len(terme)):
-        if terme[i] == '(' or terme[i]=='[' or terme[i]=='{':
-            counter += 1
-            indexes.append(i)
-    return (counter, indexes)
+    indexes = [i for i, char in enumerate(terme) if char in open_list]
+    return len(indexes), indexes
 
 
 # comme celle d avant 
 def close_parantheses_counter(terme):
-    counter = 0
-    indexes = []
-    for i in range(len(terme)):
-        if terme[i] == ')' or terme[i]==']' or terme[i]=='}':
-            counter += 1
-            indexes.append(i)
-    return (counter, indexes)
+    indexes = [i for i, char in enumerate(terme) if char in close_list]
+    return len(indexes), indexes
 
-open_list = ["[","{","("]
-close_list = ["]","}",")"]
-  
 # teste si toutes les ouvertes ont ete fermees et quil n y a pas par exemple le cas )(...
 def balancedParantheses(terme):
     stack = []
-    for i in terme:
-        if i in open_list:
-            stack.append(i)
-        elif i in close_list:
-            pos = close_list.index(i)
-            if ((len(stack) > 0) and (open_list[pos] == stack[len(stack)-1])):
+    
+    for char in terme:
+        if char in parentheses_map.values():  # If it's an opening parenthesis
+            stack.append(char)
+        elif char in parentheses_map:  # If it's a closing parenthesis
+            if stack and stack[-1] == parentheses_map[char]:
                 stack.pop()
             else:
                 return False
-    return len(stack) == 0
+    return not stack
 
 #renvoie le nombre de parentheses ouvertes qui est aussi le nombre de couples de parenthèses que le terme compte
 def parantheses_couples(terme):
@@ -49,17 +36,25 @@ def parantheses_couples(terme):
 
 def findOpeningParanthesesIndex(terme, closeParentheseIndex):
     assert balancedParantheses(terme), "Not balanced Terme"
-    if terme[closeParentheseIndex]== ')':
-      openParantheseIndex = closeParentheseIndex
-      counter = 1
-      while (counter > 0 ):
-         openParantheseIndex -=1
-         c = terme[openParantheseIndex]
-         if c in open_list:
+    if closeParentheseIndex >= len(terme) or closeParentheseIndex < 0:
+        raise IndexError("closeParentheseIndex is out of range")
+
+    if terme[closeParentheseIndex] not in parentheses_map:
+        raise KeyError(f"Character at closeParentheseIndex '{terme[closeParentheseIndex]}' is not a valid closing parenthesis")
+
+    openParenthesis = parentheses_map[terme[closeParentheseIndex]]
+    openParantheseIndex = closeParentheseIndex
+    counter = 1
+
+    while counter > 0:
+        openParantheseIndex -= 1
+        if openParantheseIndex < 0:
+            raise IndexError("No matching opening parenthesis found")
+        char = terme[openParantheseIndex]
+        if char == openParenthesis:
             counter -= 1
-         elif c in close_list:
+        elif char in close_list:  # elif char in set(parentheses_map.keys()): could be a better solution since set lookups are O(1)
             counter += 1
-    
     return openParantheseIndex
 
 
@@ -71,11 +66,12 @@ def findClosingParanthesesIndex(terme, openParentheseIndex):
     while (counter > 0 ):
         closeParantheseIndex +=1
         c = terme[closeParantheseIndex]
-        if c == "(" or c=='{' or c=='[':
+        if c in open_list:
             counter += 1
-        elif c == ")" or c==']' or c=='}':
+        elif c in close_list:
             counter -= 1
     return closeParantheseIndex
+
 
 # renvoie ce qu'il y a entre la parenthese ouverte a l indice i et sa parethese fermante
 def getTermFromParantheses(terme,i):
@@ -83,43 +79,38 @@ def getTermFromParantheses(terme,i):
 
 def getTermsFromParantheses(terme):
     terms = []
-    # indexes_of_open_parantheses = open_parantheses_counter(terme)[1]
-    # for i in range(len(indexes_of_open_parantheses)):
-    #     if findClosingParanthesesIndex(terme,indexes_of_open_parantheses[i]) > findClosingParanthesesIndex(terme,indexes_of_open_parantheses[i-1]):
-    #         terms.append(getTermFromParantheses(terme,indexes_of_open_parantheses[i]))
     i = 0
     while i < len(terme):
-        if terme[i] == '(' or terme[i]=='{' or terme[i]=='[':
-            terms.append(getTermFromParantheses(terme,i))
-            i = findClosingParanthesesIndex(terme,i)
-        else:
-            i+=1
+        if terme[i] in open_list:
+            try:
+                term = getTermFromParantheses(terme, i)
+                terms.append(term)
+                i = findClosingParanthesesIndex(terme, i)
+            except ValueError as e:
+                print(f"Error: {e}")
+                break
+        i += 1
     return terms
 
 #fonction qui enleve les espaces successifs et laisse un seul espace
 def remove_multiple_spaces(terme):
-    terme = terme.strip()
-    new_term=''
-    i=0
-    while i<len(terme):
-        new_term+=terme[i]
-        if terme[i]==' ':
-            while terme[i]==' ':
-                i+=1
-        else:
-            i+=1
-    return new_term
+    return ' '.join(terme.split())
 
 def checkType(terme):
-    if "#" == terme[0]:
+    if not terme:
+        return None
+    
+    firstChar = terme[0]
+    lastChar = terme[-1]
+    if firstChar == "#":
         return ABS
-    elif  terme[0] == '(' or terme[0]=='{' or terme[0]=='[':
-        l = getTermsFromParantheses(terme)
-        if len(l) == 1 and ( (terme[-1] == ')' or terme[-1]==']' or terme[-1]=='}')):
+    elif  firstChar in open_list: # this is just a cleaner way for checking
+        terms = getTermsFromParantheses(terme)
+        if len(terms) == 1 and lastChar in close_list:
             return checkType(getTermFromParantheses(terme,0))
         else:
             return APP
-    elif not(any(charac in (terme) for charac in ['(',')',' ','#','.', '[', ']','{','}'])):
+    elif all(char not in terme for char in " ()#.[{]}"):
         return VAR
     else:
         return APP
@@ -135,39 +126,55 @@ def isApplication(terme):
 
 
 #on prend l input de labs en chaine de caractères
-def extractInputFromAbs(terme):
-    input = ''
-    if checkType(terme) == ABS:
-        i = 1
-        while (terme[i] != "."):
-            input += terme[i]
-            i+=1
-    return input
+def extractInputFromAbs(expression):
+    if not expression.startswith(('λ', '\\')):
+        return ""
+    
+    parts = expression[1:].split('.', 1)
+    if len(parts) == 2 and parts[0].isalpha():
+        return parts[0]
+    
+    return ""
+
+
 # on prend l output en chaine de caractères
 def extractOutputFromAbs(terme):
+    if not isinstance(terme, str):
+        raise TypeError("Input must be a string")
+    if not terme.startswith(('λ', '\\')):
+        return ""
     index_of_point = terme.find('.')
-    if checkType(terme) == ABS:
-        return terme[index_of_point+1:]
+    if index_of_point == -1:
+        raise ValueError("Invalid input: Missing '.' in abstraction")
+    
+    return terme[index_of_point + 1:]
 
 def buildVar(terme):
-    assert (checkType(terme) == VAR)
+
+    if not isinstance(terme, str):
+        raise TypeError("Input must be a string")
+    
+    if checkType(terme) != VAR:
+        raise ValueError("Invalid input: Term is not of type VAR")
     # print(terme)
-    if terme[0]!='(' and terme[0]!='{' and terme[0]!='[':
+    if terme[0] not in open_list:
         if terme in variables:
             return variables[terme]
         else:
-            variables[terme] = new_var(freshVar())
+            newVar = new_var(freshVar())
+            variables[terme] = newVar
             return variables[terme]
     else :
         return buildTerm(getTermFromParantheses(terme,0))
 
 def buildAbs(terme):
-    assert (checkType(terme) == ABS)
+    assert checkType(terme) == ABS, f"Expected ABS type, got {checkType(terme)}"
+
     input = extractInputFromAbs(terme)
     output = extractOutputFromAbs(terme)
-    # print(terme,"INPUT:", input,'OUTPUT:', output)
-    if not(terme [0] in open_list):
-        return new_abs((buildTerm(input)),buildTerm(output))
+
+    if terme[0] not in open_list:
+        return new_abs(buildTerm(input), buildTerm(output))
     else:
         return buildTerm(getTermFromParantheses(terme,0))
 
@@ -175,48 +182,46 @@ def extract_terms(text):
     terms = []
     current_term = ""
     paranthesis_level = 0
-    for i in range(len(text)):
-        if text[i] == "(" or text[i]=='{' or text[i]=='[' :
-            if paranthesis_level == 0:
+
+    for char in text:
+        if char in open_list:
+            if current_term:
+                terms.append(current_term)
                 current_term = ""
-            else:
-              current_term += text[i]
+            current_term += char
             paranthesis_level += 1
-        elif text[i] == ")" or text[i]==']' or text[i]=='}':
+        elif char in close_list:
             paranthesis_level -= 1
-            if paranthesis_level > 0:
-                current_term += text[i]
-        elif text[i] == " " and paranthesis_level == 0:
-            if current_term != "":
+            current_term += char
+            if paranthesis_level == 0:
+                terms.append(current_term)
+                current_term = ""
+        elif char == " " and paranthesis_level == 0:
+            if current_term:
                 terms.append(current_term)
                 current_term = ""
         else:
-            current_term += text[i]
-    if current_term != "":
+            current_term += char
+    if current_term:
         terms.append(current_term)
     return terms
 
+
 def buildApp(terme):
-    assert (checkType(terme) == APP)
+    if not isinstance(terme, str):
+        raise TypeError("Input term must be a string")
+
+    assert checkType(terme) == APP, "Input term must be of type APP"
+    
     liste_de_termes = extract_terms(terme)
-    if terme[0]!='(' and terme[0]!='{' and terme[0]!='[':
-        n = len(liste_de_termes)
-        if n == 0:
-            return None
-        else:
-            t = buildTerm(liste_de_termes[0])
-        for k in range(1, n):
-            if liste_de_termes[k] == '':
-                return t
-            t = new_app(t, buildTerm(liste_de_termes[k]))
-        return t
-    else:
-        t = buildTerm(liste_de_termes[0])
-        for k in range(1, len(liste_de_termes)):
-            if liste_de_termes[k] == '':
-                return t
-            t = new_app(t, buildTerm(liste_de_termes[k]))
-        return t
+    if not liste_de_termes: return None
+
+    t = buildTerm(liste_de_termes[0])
+    for k in range(1, len(liste_de_termes)):
+        if liste_de_termes[k] == '': return t
+        t = new_app(t, buildTerm(liste_de_termes[k]))
+    
+    return t
     
 def buildTerm(terme):
     if isVariable(terme): return buildVar(terme)
